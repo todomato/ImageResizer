@@ -1,8 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ImageResizer
 {
@@ -21,7 +24,6 @@ namespace ImageResizer
             else
             {
                 var allImageFiles = Directory.GetFiles(destPath, "*", SearchOption.AllDirectories);
-
                 foreach (var item in allImageFiles)
                 {
                     File.Delete(item);
@@ -35,27 +37,45 @@ namespace ImageResizer
         /// <param name="sourcePath">圖片來源目錄路徑</param>
         /// <param name="destPath">產生圖片目的目錄路徑</param>
         /// <param name="scale">縮放比例</param>
-        public void ResizeImages(string sourcePath, string destPath, double scale)
+        public async Task ResizeImagesAsync(string sourcePath, string destPath, double scale)
         {
             var allFiles = FindImages(sourcePath);
-            foreach (var filePath in allFiles)
+
+            //非同步處理圖片資訊
+            var task = new Task[allFiles.Count];
+            for (int i = 0; i < allFiles.Count; i++)
             {
-                Image imgPhoto = Image.FromFile(filePath);
-                string imgName = Path.GetFileNameWithoutExtension(filePath);
-
-                int sourceWidth = imgPhoto.Width;
-                int sourceHeight = imgPhoto.Height;
-
-                int destionatonWidth = (int)(sourceWidth * scale);
-                int destionatonHeight = (int)(sourceHeight * scale);
-
-                Bitmap processedImage = processBitmap((Bitmap)imgPhoto,
-                    sourceWidth, sourceHeight,
-                    destionatonWidth, destionatonHeight);
-
-                string destFile = Path.Combine(destPath, imgName + ".jpg");
-                processedImage.Save(destFile, ImageFormat.Jpeg);
+                var file = allFiles[i];
+                task[i] = Task.Run(async () =>
+                {
+                    await ExecuteResize(destPath, scale, file);
+                });
             }
+
+            await Task.WhenAll(task);
+        }
+
+        private async Task<bool> ExecuteResize(string destPath, double scale, string filePath)
+        {
+            var tid = String.Format("{0:D2}", Thread.CurrentThread.ManagedThreadId);
+            Console.WriteLine($" 測試 (TID: {tid}) >>>> {DateTime.Now}");
+
+            Image imgPhoto = Image.FromFile(filePath);
+            string imgName = Path.GetFileNameWithoutExtension(filePath);
+
+            int sourceWidth = imgPhoto.Width;
+            int sourceHeight = imgPhoto.Height;
+
+            int destionatonWidth = (int)(sourceWidth * scale);
+            int destionatonHeight = (int)(sourceHeight * scale);
+
+            var processedImage = await processBitmap((Bitmap)imgPhoto,
+                sourceWidth, sourceHeight,
+                destionatonWidth, destionatonHeight);
+
+            string destFile = Path.Combine(destPath, imgName + ".jpg");
+            processedImage.Save(destFile, ImageFormat.Jpeg);
+            return true;
         }
 
         /// <summary>
@@ -72,6 +92,7 @@ namespace ImageResizer
             return files;
         }
 
+
         /// <summary>
         /// 針對指定圖片進行縮放作業
         /// </summary>
@@ -81,7 +102,7 @@ namespace ImageResizer
         /// <param name="newWidth">新圖片的寬度</param>
         /// <param name="newHeight">新圖片的高度</param>
         /// <returns></returns>
-        Bitmap processBitmap(Bitmap img, int srcWidth, int srcHeight, int newWidth, int newHeight)
+        async Task<Bitmap> processBitmap(Bitmap img, int srcWidth, int srcHeight, int newWidth, int newHeight)
         {
             Bitmap resizedbitmap = new Bitmap(newWidth, newHeight);
             Graphics g = Graphics.FromImage(resizedbitmap);
@@ -92,6 +113,8 @@ namespace ImageResizer
                 new Rectangle(0, 0, newWidth, newHeight),
                 new Rectangle(0, 0, srcWidth, srcHeight),
                 GraphicsUnit.Pixel);
+
+            return await Task.FromResult(resizedbitmap);
             return resizedbitmap;
         }
     }
