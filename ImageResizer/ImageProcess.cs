@@ -57,8 +57,8 @@ namespace ImageResizer
 
         private async Task<bool> ExecuteResize(string destPath, double scale, string filePath)
         {
-            var tid = String.Format("{0:D2}", Thread.CurrentThread.ManagedThreadId);
-            Console.WriteLine($" 測試 (TID: {tid}) >>>> {DateTime.Now}");
+            //var tid = String.Format("{0:D2}", Thread.CurrentThread.ManagedThreadId);
+            //Console.WriteLine($" 測試 (TID: {tid}) >>>> {DateTime.Now}");
 
             Image imgPhoto = Image.FromFile(filePath);
             string imgName = Path.GetFileNameWithoutExtension(filePath);
@@ -72,6 +72,8 @@ namespace ImageResizer
             var processedImage = await processBitmap((Bitmap)imgPhoto,
                 sourceWidth, sourceHeight,
                 destionatonWidth, destionatonHeight);
+
+            //Console.WriteLine($" 測試後 (TID: {tid}) >>>> {DateTime.Now}");
 
             string destFile = Path.Combine(destPath, imgName + ".jpg");
             processedImage.Save(destFile, ImageFormat.Jpeg);
@@ -115,7 +117,6 @@ namespace ImageResizer
                 GraphicsUnit.Pixel);
 
             return await Task.FromResult(resizedbitmap);
-            return resizedbitmap;
         }
     }
 }
